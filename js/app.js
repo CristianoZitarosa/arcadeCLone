@@ -1,4 +1,4 @@
-'use strict'
+'use strict';
 
 /**
 * Global variables
@@ -12,6 +12,7 @@ const loose = document.querySelector("#loose");
 gameLoop.loop = true;
 /* variables */
 const modalContent = document.querySelector('.modal-content');
+const modal = document.querySelector('.modal');
 let lap = 0;
 let locked = false;
 
@@ -20,7 +21,7 @@ let locked = false;
 * This modal is used to inform the player about rules and how to play.
 **/
 (function openingModal() {
-  modalContent.innerHTML = '<h1 class="centered">Welcome to the Game!</h1><h3>Rules are simple:</h3><ul> <li>Avoid Enemies;</li><li><strong>Reach the top to gain +1 life and +50 points</strong>;</li><li><strong>Game is won if the top is reached 5 times!</strong></li><li>3 lifes;</li><li>The character can move <strong>up, down, left, right</strong>;</li><li><strong>Bonus, only if the game is won, points are multiplied by saved lives!!!</strong></li></ul><h2 class="centered">Move the character by arrow keys. Have fun!</h2><button class="close button centered">PLAY!</button>';
+  modalContent.innerHTML = '<h1 class="centered">Welcome to the Game!</h1><h3>Rules are simple:</h3><ul><li>Avoid Enemies;</li><li><strong>Reach the top to gain +1 life and +50 points</strong>;</li><li><strong>Game is won if the top is reached 5 times!</strong></li><li>3 lifes;</li><li>The character can move <strong>up, down, left, right</strong>;</li><li><strong>Bonus, only if the game is won, points are multiplied by saved lives!!!</strong></li></ul><h2 class="centered">Move the character by arrow keys. Have fun!</h2><button class="close button centered">PLAY!</button>';
 })();
 
 /**
@@ -32,7 +33,7 @@ closeModal.onclick = function() {
   modal.style.display = "none";
   playCoin.play();
   gameLoop.play();
-}
+};
 
 /**
 * Class that builds a generic character.
@@ -55,34 +56,41 @@ class Character {
 **/
 class Enemy extends Character {
 
-  constructor(x, y, sprite) {
-		super(x, y, sprite);
-		this.x = x;
-		this.y = y;
-		this.sprite = sprite;
-	}
+  constructor(x, y, sprite, speed) {
+    super(x, y, sprite);
+    this.x = x;
+    this.y = y;
+    this.sprite = sprite;
+    this.speed = speed;
+  }
 
   update(dt) {
-    /* sets speed and direction(right) of external enemy rows or resets enemy */
-    if (!(this.y === 140)){
+    /* sets speed and direction (right) of external enemy rows or resets enemy */
+    if (this.y !== 140){
       if (this.x < canvasWidth) {
-        this.x += 200*dt;
+        this.x += this.speed * dt;
       } else { this.x = -40; }
     }
-    /* sets speed and direction(left) of central enemy row or resets enemy */
+    /* sets speed and direction (left) of central enemy row or resets enemy */
     if (this.y === 140) {
       if (this.x > -60) {
-        this.x -= 250*dt;
-    } else { this.x = 550; }
+        this.x -= this.speed * dt;
+      } else { this.x = 550; }
     }
     /* Player-Enemy collision check */
-    if (this.x + 70 >= player.x &&
-        this.x <= player.x + 70 &&
-        this.y - 70 <= player.y &&
-        this.y >= player.y - 70) {
+    if (this.x + 53 >= player.x &&
+        this.x <= player.x + 53 &&
+        this.y - 53 <= player.y &&
+        this.y >= player.y - 53) {
           /* If true player is teleported to start */
           player.x = 205; player.y = 395;
-          checkLives();
+          player.lives--;
+          if (player.lives === 0) {
+            /* Keyboard is locked to prevent moves at game stopped */
+            locked = true;
+            gameOver();
+            restartButton();
+          }
     }
   }
 
@@ -91,12 +99,12 @@ class Enemy extends Character {
 /**
 * All the enemies and an array containing them.
 **/
-const enemy1 = new Enemy(10, 55, 'images/bad-boy.png');
-const enemy2 = new Enemy(300, 140, 'images/bad-boy.png');
-const enemy3 = new Enemy(10, 225, 'images/bad-boy.png');
-const enemy4 = new Enemy(210, 55, 'images/bad-boy.png');
-const enemy5 = new Enemy(500, 140, 'images/bad-boy.png');
-const enemy6 = new Enemy(210, 225, 'images/bad-boy.png');
+const enemy1 = new Enemy(10, 55, 'images/bad-boy.png', 200);
+const enemy2 = new Enemy(150, 140, 'images/bad-boy.png', 250);
+const enemy3 = new Enemy(10, 225, 'images/bad-boy.png', 300);
+const enemy4 = new Enemy(210, 55, 'images/bad-boy.png', 200);
+const enemy5 = new Enemy(350, 140, 'images/bad-boy.png', 250);
+const enemy6 = new Enemy(210, 225, 'images/bad-boy.png', 300);
 
 const allEnemies = [enemy1, enemy2, enemy3, enemy4, enemy5, enemy6];
 
@@ -119,7 +127,7 @@ class Player extends Character {
   }
 
   handleInput(pressedKeys) {
-    /* If the keyboard is set to lock prevents further key press */
+    /* If the keyboard is set to locked, prevents further key press */
     if (locked) return;
     /* Otherwise moves the player and sets canvas' limits */
     if (pressedKeys === 'left' && this.x > 33) {
@@ -129,20 +137,35 @@ class Player extends Character {
       this.y -= 83;
     }
     else if (pressedKeys === 'right' && this.x < 400) {
-      this.x += 100
+      this.x += 100;
     }
     else if (pressedKeys === 'down' && this.y < 395) {
-      this.y += 83
+      this.y += 83;
     }
     /* If the player reaches the top, points lives and lap are updated */
     if (this.y < 63) {
       this.score += 50;
       this.lives++;
       lap++;
-      repositionPlayer();
-    }
+      if (lap === 5) {
+        /* Keyboard is locked to prevent moves at game stopped */
+        locked = true;
+        endGame();
+        restartButton();
+      } else {
+        /* Keyboard is locked to prevent moves causing unwanted game behaviour */
+        locked = true;
+        /* Player is teleported at start after a short delay */
+        setTimeout( () => {
+          player.x = 205;
+          player.y = 395;
+          locked = false;
+        }, 1500);
+      }
 
+    }
   }
+
 }
 
 /**
@@ -165,50 +188,14 @@ document.addEventListener('keyup', function(e) {
 });
 
 /**
-* This job of this function is to manage player's life.
-* Once it is called life is decreased.
-* Then a check is done, if all lives are lost, is called gameOver().
-* It is built the button to restart the game.
+* This function is called to set a listener on the restart button
+*   once the button is built if needed.
 **/
-function checkLives() {
-  player.lives--;
-  if (player.lives === 0) {
-    /* Keyboard is locked to prevent moves at game stopped */
-    locked = true;
-    gameOver();
+function restartButton() {
     const restartGame = document.querySelector('.restart');
     restartGame.onclick = function() {
       document.location.reload();
-    }
-  }
-}
-
-/**
-* This function is used to teleport the player on the starting position
-*   after a visit to the top.
-* If the player have visited the top 5 times is called endGame().
-* It is built the button to restart the game.
-**/
-function repositionPlayer() {
-  if (lap === 5) {
-    /* Keyboard is locked to prevent moves at game stopped */
-    locked = true;
-    endGame();
-    const restartGame = document.querySelector('.restart');
-    restartGame.onclick = function() {
-    document.location.reload();
-    }
-  } else {
-    /* Keyboard is locked to prevent moves causing unwanted game behaviour */
-    locked = true;
-    /* Player is teleported at start after a short delay */
-    setTimeout( () => {
-      player.x = 205;
-      player.y = 395;
-      locked = false;
-    }, 1500);
-    success.play();
-  }
+    };
 }
 
 /**
@@ -217,7 +204,6 @@ function repositionPlayer() {
 * It is played a music for the game just won.
 **/
 function endGame() {
-  cleanModal();
   stopMusic();
   win.play();
   modal.style.display = "block";
@@ -231,7 +217,6 @@ function endGame() {
 * It is played a music for the game failed to win.
 **/
 function gameOver() {
-  cleanModal();
   stopMusic();
   loose.play();
   modal.style.display = "block";
@@ -243,13 +228,4 @@ function gameOver() {
 **/
 function stopMusic() {
   gameLoop.pause();
-}
-
-/**
-* This function is called to clean the modal re-used during the game
-**/
-function cleanModal() {
-  while (modalContent.firstChild) {
-    modalContent.removeChild(modalContent.firstChild);
-  }
 }
